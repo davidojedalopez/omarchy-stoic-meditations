@@ -53,6 +53,24 @@ TestCase {
     verify(controller.errorMessage.length > 0)
   }
 
+  function test_refresh_failure_preserves_loaded_episode() {
+    controller.applyPayload(JSON.stringify({
+      ok: true,
+      title: "A lesson",
+      published: "2026-08-20T07:00:00+00:00",
+      durationSeconds: 120,
+      audioUrl: "https://example.com/lesson.mp3",
+      episodeUrl: "https://dailystoic.com/podcast/"
+    }))
+
+    controller.applyPayload("not-json")
+
+    compare(controller.status, "ready")
+    compare(controller.title, "A lesson")
+    compare(controller.audioUrl, "https://example.com/lesson.mp3")
+    verify(controller.errorMessage.length > 0)
+  }
+
   function test_clamps_seek_position() {
     compare(controller.clampPosition(-1, 1000), 0)
     compare(controller.clampPosition(400, 1000), 400)

@@ -18,12 +18,14 @@ Item {
   property string audioUrl: ""
   property string episodeUrl: "https://dailystoic.com/podcast/"
   property bool playWhenReady: false
+  property bool refreshing: false
   property bool feedTimedOut: false
   property bool feedTerminationPending: false
   property bool retryAfterTermination: false
 
-  readonly property bool loading: status === "loading"
+  readonly property bool loading: status === "loading" || refreshing
   readonly property bool playing: player.playbackState === MediaPlayer.PlayingState
+  readonly property bool paused: player.playbackState === MediaPlayer.PausedState
   readonly property int position: player.position
   readonly property int duration: player.duration > 0 ? player.duration : feedDurationMs
   readonly property bool seekable: player.seekable
@@ -39,9 +41,18 @@ Item {
     return typeof value === "string" && value.indexOf("https://") === 0
   }
 
-  function fail(message) {
-    status = "error"
+  function failFeed(message) {
+    refreshing = false
     errorMessage = message || "Unable to load the latest episode."
+    playWhenReady = false
+    status = audioUrl ? "ready" : "error"
+  }
+
+  function failPlayback(message) {
+    refreshing = false
+    player.stop()
+    status = "error"
+    errorMessage = message || "Audio playback failed."
     playWhenReady = false
   }
 
@@ -53,7 +64,9 @@ Item {
     if (feedProcess.running)
       return
 
-    status = "loading"
+    refreshing = Boolean(audioUrl)
+    if (!audioUrl)
+      status = "loading"
     errorMessage = ""
     feedTimedOut = false
     feedProcess.command = ["python3", scriptPath()]
@@ -62,7 +75,7 @@ Item {
   }
 
   function scheduledRefresh() {
-    if (audioUrl)
+    if (player.playbackState !== MediaPlayer.StoppedState)
       return
     refresh()
   }
@@ -72,36 +85,42 @@ Item {
     try {
       payload = JSON.parse(String(text || ""))
     } catch (error) {
-      fail("The podcast feed returned invalid data.")
+      failFeed("The podcast feed returned invalid data.")
       return
     }
 
     if (!payload || payload.ok !== true) {
-      fail(payload && payload.error ? String(payload.error) : "Unable to load the latest episode.")
+      failFeed(payload && payload.error ? String(payload.error) : "Unable to load the latest episode.")
       return
     }
 
     if (typeof payload.title !== "string" || payload.title.length === 0
         || !isHttps(payload.audioUrl)
         || (payload.episodeUrl && !isHttps(payload.episodeUrl))) {
-      fail("The podcast feed returned unsafe or incomplete data.")
+      failFeed("The podcast feed returned unsafe or incomplete data.")
       return
     }
 
     var seconds = Number(payload.durationSeconds || 0)
     if (!isFinite(seconds) || seconds < 0) {
-      fail("The podcast feed returned an invalid duration.")
+      failFeed("The podcast feed returned an invalid duration.")
       return
     }
 
-    if (audioUrl && audioUrl !== payload.audioUrl)
-      player.stop()
+    if (audioUrl && audioUrl !== payload.audioUrl
+        && player.playbackState !== MediaPlayer.StoppedState) {
+      refreshing = false
+      errorMessage = ""
+      status = "ready"
+      return
+    }
 
     title = payload.title
     publishedAt = typeof payload.published === "string" ? payload.published : ""
     feedDurationMs = Math.round(seconds * 1000)
     audioUrl = payload.audioUrl
     episodeUrl = payload.episodeUrl || "https://dailystoic.com/podcast/"
+    refreshing = false
     status = "ready"
     errorMessage = ""
 
@@ -157,6 +176,7 @@ Item {
     audioUrl = ""
     episodeUrl = "https://dailystoic.com/podcast/"
     playWhenReady = false
+    refreshing = false
     feedTimedOut = false
     feedTerminationPending = false
     retryAfterTermination = false
@@ -168,7 +188,7 @@ Item {
     audioOutput: AudioOutput {}
 
     onErrorOccurred: function(error, errorString) {
-      root.fail(errorString || "Audio playback failed.")
+      root.failPlayback(errorString || "Audio playback failed.")
     }
   }
 
@@ -192,7 +212,7 @@ Item {
         if (output)
           root.applyPayload(output)
         else
-          root.fail("Unable to fetch the podcast feed.")
+          root.failFeed("Unable to fetch the podcast feed.")
       }
     }
 
@@ -210,7 +230,7 @@ Item {
       root.feedTimedOut = true
       root.feedTerminationPending = true
       feedProcess.running = false
-      root.fail("The podcast feed request timed out.")
+      root.failFeed("The podcast feed request timed out.")
     }
   }
 

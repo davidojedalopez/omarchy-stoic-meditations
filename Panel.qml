@@ -146,6 +146,16 @@ Panel {
           wrapMode: Text.Wrap
         }
 
+        Text {
+          visible: root.podcast && root.podcast.status === "ready" && root.podcast.errorMessage.length > 0
+          width: parent.width
+          text: root.podcast ? root.podcast.errorMessage : ""
+          color: root.contentForeground
+          font.family: root.contentFontFamily
+          font.pixelSize: Style.font.bodySmall
+          wrapMode: Text.Wrap
+        }
+
         Column {
           visible: root.podcast && root.podcast.status === "error"
           width: parent.width
@@ -282,8 +292,9 @@ Panel {
           }
 
           Button {
-            text: "Refresh"
+            text: root.podcast && root.podcast.refreshing ? "Refreshing…" : "Refresh"
             iconText: "󰑐"
+            enabled: !root.podcast || !root.podcast.refreshing
             focusable: true
             hasCursor: root.actionSelected("refresh")
             foreground: root.contentForeground

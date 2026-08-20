@@ -6,12 +6,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class QmlContractTest(unittest.TestCase):
-    def test_controller_uses_feed_payload_field_and_skips_timed_refresh_while_playing(self):
+    def test_controller_uses_feed_payload_field_and_preserves_active_playback(self):
         source = (ROOT / "PodcastController.qml").read_text(encoding="utf-8")
 
         self.assertIn("payload.published", source)
-        self.assertIn("if (audioUrl)", source)
-        self.assertNotIn("if (playing && audioUrl)", source)
+        self.assertIn("player.playbackState !== MediaPlayer.StoppedState", source)
+        self.assertNotIn("if (audioUrl)\n      return\n    refresh()", source)
+        self.assertIn('status = audioUrl ? "ready" : "error"', source)
+        self.assertIn("property bool refreshing: false", source)
 
     def test_controller_parses_stdout_when_the_collector_finishes(self):
         source = (ROOT / "PodcastController.qml").read_text(encoding="utf-8")
