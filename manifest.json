@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "dev.davidojeda.stoic-podcast",
+  "name": "Stoic Podcast",
+  "version": "0.1.0",
+  "author": "David Ojeda",
+  "license": "MIT",
+  "description": "An unofficial player that streams the latest Daily Stoic podcast episode from its official RSS feed.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "activation": "on-demand",
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Stoic Podcast",
+    "description": "Play the latest episode from the official Daily Stoic podcast feed.",
+    "category": "Media",
+    "aliases": [
+      "stoic",
+      "podcast",
+      "meditation"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
