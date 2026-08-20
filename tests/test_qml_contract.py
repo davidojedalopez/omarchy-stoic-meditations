@@ -47,6 +47,14 @@ class QmlContractTest(unittest.TestCase):
         self.assertNotIn("description", source.lower())
         self.assertNotIn("artwork", source.lower())
 
+    def test_panel_treats_feed_titles_as_plain_text_and_scrolls_overflow(self):
+        source = (ROOT / "Panel.qml").read_text(encoding="utf-8")
+
+        self.assertIn("textFormat: Text.PlainText", source)
+        self.assertIn("Flickable {", source)
+        self.assertIn("contentHeight: content.implicitHeight", source)
+        self.assertIn("function ensureKeyboardCursorVisible()", source)
+
     def test_panel_buttons_are_keyboard_focusable(self):
         source = (ROOT / "Panel.qml").read_text(encoding="utf-8")
 

@@ -28,12 +28,38 @@ Panel {
 
   function resetKeyboardCursor() {
     keyboardIndex = podcast && (podcast.status === "ready" || podcast.playing) ? 1 : 0
+    Qt.callLater(ensureKeyboardCursorVisible)
   }
 
   function moveKeyboardCursor(delta) {
     var count = keyboardActions.length
     if (count === 0 || delta === 0) return
     keyboardIndex = (keyboardIndex + (delta > 0 ? 1 : -1) + count) % count
+    Qt.callLater(ensureKeyboardCursorVisible)
+  }
+
+  function keyboardActionItem(name) {
+    if (name === "retry") return retryButton
+    if (name === "back") return backButton
+    if (name === "play") return playButton
+    if (name === "forward") return forwardButton
+    if (name === "page") return pageButton
+    if (name === "refresh") return refreshButton
+    return null
+  }
+
+  function ensureKeyboardCursorVisible() {
+    var item = keyboardActionItem(currentKeyboardAction)
+    if (!item || !contentFlick || !contentFlick.contentItem) return
+    var point = item.mapToItem(contentFlick.contentItem, 0, 0)
+    var margin = Style.space(6)
+    var top = point.y
+    var bottom = top + item.height
+    var maximum = Math.max(0, contentFlick.contentHeight - contentFlick.height)
+    if (top < contentFlick.contentY + margin)
+      contentFlick.contentY = Math.max(0, top - margin)
+    else if (bottom > contentFlick.contentY + contentFlick.height - margin)
+      contentFlick.contentY = Math.min(maximum, bottom + margin - contentFlick.height)
   }
 
   function actionSelected(name) {
@@ -121,10 +147,20 @@ Panel {
         if (text === "r" || text === "R") root.podcast.refresh()
       }
 
-      Column {
-        id: content
-        width: parent.width
-        spacing: Style.space(12)
+      Flickable {
+        id: contentFlick
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: content.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        flickableDirection: Flickable.VerticalFlick
+        interactive: contentHeight > height
+
+        Column {
+          id: content
+          width: contentFlick.width
+          spacing: Style.space(12)
 
         Text {
           width: parent.width
@@ -171,6 +207,7 @@ Panel {
           }
 
           Button {
+            id: retryButton
             text: "Retry"
             iconText: "󰑓"
             focusable: true
@@ -190,6 +227,7 @@ Panel {
           Text {
             width: parent.width
             text: root.podcast ? root.podcast.title : ""
+            textFormat: Text.PlainText
             color: root.contentForeground
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.title
@@ -243,6 +281,7 @@ Panel {
             spacing: Style.space(8)
 
             Button {
+              id: backButton
               iconText: "󰒮"
               tooltipText: "Back 15 seconds"
               focusable: true
@@ -266,6 +305,7 @@ Panel {
             }
 
             Button {
+              id: forwardButton
               iconText: "󰒭"
               tooltipText: "Forward 15 seconds"
               focusable: true
@@ -282,6 +322,7 @@ Panel {
           spacing: Style.space(8)
 
           Button {
+            id: pageButton
             text: "Official episode page"
             iconText: "󰏌"
             focusable: true
@@ -292,6 +333,7 @@ Panel {
           }
 
           Button {
+            id: refreshButton
             text: root.podcast && root.podcast.refreshing ? "Refreshing…" : "Refresh"
             iconText: "󰑐"
             enabled: !root.podcast || !root.podcast.refreshing
@@ -310,6 +352,7 @@ Panel {
           font.family: root.contentFontFamily
           font.pixelSize: Style.font.caption
           wrapMode: Text.Wrap
+        }
         }
       }
     }
