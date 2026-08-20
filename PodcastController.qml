@@ -52,6 +52,12 @@ Item {
     feedProcess.running = true
   }
 
+  function scheduledRefresh() {
+    if (playing && audioUrl)
+      return
+    refresh()
+  }
+
   function applyPayload(text) {
     var payload
     try {
@@ -83,7 +89,7 @@ Item {
       player.stop()
 
     title = payload.title
-    publishedAt = typeof payload.publishedAt === "string" ? payload.publishedAt : ""
+    publishedAt = typeof payload.published === "string" ? payload.published : ""
     feedDurationMs = Math.round(seconds * 1000)
     audioUrl = payload.audioUrl
     episodeUrl = payload.episodeUrl || "https://dailystoic.com/podcast/"
@@ -180,7 +186,7 @@ Item {
     interval: 30 * 60 * 1000
     repeat: true
     running: root.autoRefresh
-    onTriggered: root.refresh()
+    onTriggered: root.scheduledRefresh()
   }
 
   Component.onCompleted: {

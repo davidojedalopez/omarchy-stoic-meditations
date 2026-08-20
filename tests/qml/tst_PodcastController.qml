@@ -33,7 +33,7 @@ TestCase {
     controller.applyPayload(JSON.stringify({
       ok: true,
       title: "A lesson",
-      publishedAt: "2026-08-20T07:00:00+00:00",
+      published: "2026-08-20T07:00:00+00:00",
       durationSeconds: 120,
       audioUrl: "https://example.com/lesson.mp3",
       episodeUrl: "https://dailystoic.com/podcast/"
@@ -41,6 +41,7 @@ TestCase {
 
     compare(controller.status, "ready")
     compare(controller.title, "A lesson")
+    compare(controller.publishedAt, "2026-08-20T07:00:00+00:00")
     compare(controller.duration, 120000)
     compare(controller.playing, false)
   }

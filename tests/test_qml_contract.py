@@ -6,6 +6,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class QmlContractTest(unittest.TestCase):
+    def test_controller_uses_feed_payload_field_and_skips_timed_refresh_while_playing(self):
+        source = (ROOT / "PodcastController.qml").read_text(encoding="utf-8")
+
+        self.assertIn("payload.published", source)
+        self.assertIn("if (playing && audioUrl)", source)
+
     def test_bar_widget_owns_controller_and_nested_panel(self):
         source = (ROOT / "BarWidget.qml").read_text(encoding="utf-8")
 
