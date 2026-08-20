@@ -80,7 +80,7 @@ def _episode_from_item(item: ET.Element) -> dict[str, object]:
     require_audio_type(media_type)
     audio_url = require_https(enclosure.get("url", ""), "audio URL")
     episode_url = require_https(
-        item.findtext("link", default="").strip() or OFFICIAL_PAGE_URL,
+        (item.findtext("link", default="") or "").strip() or OFFICIAL_PAGE_URL,
         "episode URL",
     )
 

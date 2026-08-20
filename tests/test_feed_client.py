@@ -92,6 +92,15 @@ class FeedParserTest(unittest.TestCase):
 
         self.assertEqual(episode["episodeUrl"], feed_client.OFFICIAL_PAGE_URL)
 
+    def test_empty_episode_link_uses_official_podcast_page(self):
+        xml = self._single_item_xml().replace(
+            b"<link>https://example.test/episode</link>", b"<link/>"
+        )
+
+        episode = feed_client.parse_feed(xml)
+
+        self.assertEqual(episode["episodeUrl"], feed_client.OFFICIAL_PAGE_URL)
+
     def test_malformed_duration_falls_back_to_zero(self):
         xml = self._single_item_xml(duration="unknown")
         self.assertEqual(feed_client.parse_feed(xml)["durationSeconds"], 0)

@@ -45,6 +45,10 @@ class QmlContractTest(unittest.TestCase):
 
         self.assertGreaterEqual(source.count("focusable: true"), 4)
         self.assertIn("PanelKeyCatcher {", source)
+        self.assertIn("focusTarget: keyCatcher", source)
+        self.assertIn("onMoveRequested:", source)
+        self.assertIn("onActivateRequested:", source)
+        self.assertIn("hasCursor:", source)
         self.assertIn("onCloseRequested: root.close()", source)
         self.assertIn("onTabRequested:", source)
 

@@ -12,11 +12,46 @@ Panel {
   property var anchorItem: null
   property var hostWidget: null
   property var podcast: null
+  property int keyboardIndex: 0
   readonly property var barIdentity: hostWidget || root
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
+  readonly property var keyboardActions: {
+    if (podcast && podcast.status === "error") return ["retry", "page", "refresh"]
+    if (podcast && (podcast.status === "ready" || podcast.playing))
+      return ["back", "play", "forward", "page", "refresh"]
+    return ["page", "refresh"]
+  }
+  readonly property string currentKeyboardAction: keyboardActions.length > 0
+    ? keyboardActions[Math.min(keyboardIndex, keyboardActions.length - 1)]
+    : ""
+
+  function resetKeyboardCursor() {
+    keyboardIndex = podcast && (podcast.status === "ready" || podcast.playing) ? 1 : 0
+  }
+
+  function moveKeyboardCursor(delta) {
+    var count = keyboardActions.length
+    if (count === 0 || delta === 0) return
+    keyboardIndex = (keyboardIndex + (delta > 0 ? 1 : -1) + count) % count
+  }
+
+  function actionSelected(name) {
+    return currentKeyboardAction === name
+  }
+
+  function activateKeyboardAction() {
+    if (!podcast) return
+    if (currentKeyboardAction === "retry") podcast.retry()
+    else if (currentKeyboardAction === "back") podcast.seekRelative(-15000)
+    else if (currentKeyboardAction === "play") podcast.togglePlayback()
+    else if (currentKeyboardAction === "forward") podcast.seekRelative(15000)
+    else if (currentKeyboardAction === "page") openEpisodePage()
+    else if (currentKeyboardAction === "refresh") podcast.refresh()
+  }
 
   function open() {
+    resetKeyboardCursor()
     root.controller.show()
     if (podcast && podcast.status === "idle") podcast.refresh()
   }
@@ -57,27 +92,33 @@ Panel {
       Quickshell.execDetached(["xdg-open", podcast.episodeUrl])
   }
 
+  Connections {
+    target: root.podcast
+    function onStatusChanged() { root.resetKeyboardCursor() }
+  }
+
   KeyboardPanel {
     id: panel
     anchorItem: root.anchorItem
     owner: root.barIdentity
     bar: root.bar
     open: root.opened
-    focusTarget: playButton
+    focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(430))
     contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      onMoveRequested: function(dx, dy) {
+        root.moveKeyboardCursor(dx !== 0 ? dx : dy)
+      }
+      onActivateRequested: root.activateKeyboardAction()
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(text) {
         if (!root.podcast) return
-        if (text === " ") root.podcast.togglePlayback()
-        else if (text === "r" || text === "R") root.podcast.refresh()
-        else if (text === "h" || text === "H") root.podcast.seekRelative(-15000)
-        else if (text === "l" || text === "L") root.podcast.seekRelative(15000)
+        if (text === "r" || text === "R") root.podcast.refresh()
       }
 
       Column {
@@ -123,6 +164,7 @@ Panel {
             text: "Retry"
             iconText: "󰑓"
             focusable: true
+            hasCursor: root.actionSelected("retry")
             bordered: true
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
@@ -194,6 +236,7 @@ Panel {
               iconText: "󰒮"
               tooltipText: "Back 15 seconds"
               focusable: true
+              hasCursor: root.actionSelected("back")
               bordered: true
               foreground: root.contentForeground
               fontFamily: root.contentFontFamily
@@ -205,6 +248,7 @@ Panel {
               iconText: root.podcast && root.podcast.playing ? "󰏤" : "󰐊"
               text: root.podcast && root.podcast.playing ? "Pause" : "Play"
               focusable: true
+              hasCursor: root.actionSelected("play")
               bordered: true
               foreground: root.contentForeground
               fontFamily: root.contentFontFamily
@@ -215,6 +259,7 @@ Panel {
               iconText: "󰒭"
               tooltipText: "Forward 15 seconds"
               focusable: true
+              hasCursor: root.actionSelected("forward")
               bordered: true
               foreground: root.contentForeground
               fontFamily: root.contentFontFamily
@@ -230,6 +275,7 @@ Panel {
             text: "Official episode page"
             iconText: "󰏌"
             focusable: true
+            hasCursor: root.actionSelected("page")
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             onClicked: root.openEpisodePage()
@@ -239,6 +285,7 @@ Panel {
             text: "Refresh"
             iconText: "󰑐"
             focusable: true
+            hasCursor: root.actionSelected("refresh")
             foreground: root.contentForeground
             fontFamily: root.contentFontFamily
             onClicked: if (root.podcast) root.podcast.refresh()
