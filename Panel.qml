@@ -1,34 +1,34 @@
 import QtQuick
+import QtQuick.Controls
 import Quickshell
 import qs.Commons
 import qs.Ui
 
 Panel {
   id: root
-  moduleName: "dev.davidojeda.stoic-podcast"
-  ipcTarget: "dev.davidojeda.stoic-podcast"
+  moduleName: "dev.davidojeda.stoic-meditations"
+  ipcTarget: "dev.davidojeda.stoic-meditations"
   manageIpc: false
 
   property var anchorItem: null
   property var hostWidget: null
-  property var podcast: null
+  property var meditation: null
   property int keyboardIndex: 0
   readonly property var barIdentity: hostWidget || root
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property var keyboardActions: {
-    if (podcast && podcast.status === "error") return ["retry", "page", "refresh"]
-    if (podcast && (podcast.status === "ready" || podcast.playing))
-      return ["back", "play", "forward", "page", "refresh"]
-    return ["page", "refresh"]
-  }
+  readonly property var keyboardActions: meditation && meditation.status === "error"
+    ? ["retry"]
+    : ["previous", "today", "next", "edition"]
   readonly property string currentKeyboardAction: keyboardActions.length > 0
     ? keyboardActions[Math.min(keyboardIndex, keyboardActions.length - 1)]
     : ""
+  readonly property string selectedDateKey: meditation
+    ? Qt.formatDate(meditation.selectedDate, "yyyy-MM-dd")
+    : ""
 
   function resetKeyboardCursor() {
-    keyboardIndex = podcast && (podcast.status === "ready" || podcast.playing) ? 1 : 0
-    Qt.callLater(ensureKeyboardCursorVisible)
+    keyboardIndex = meditation && meditation.status === "error" ? 0 : 1
   }
 
   function moveKeyboardCursor(delta) {
@@ -39,12 +39,11 @@ Panel {
   }
 
   function keyboardActionItem(name) {
+    if (name === "previous") return previousButton
+    if (name === "today") return todayButton
+    if (name === "next") return nextButton
+    if (name === "edition") return editionButton
     if (name === "retry") return retryButton
-    if (name === "back") return backButton
-    if (name === "play") return playButton
-    if (name === "forward") return forwardButton
-    if (name === "page") return pageButton
-    if (name === "refresh") return refreshButton
     return null
   }
 
@@ -62,24 +61,42 @@ Panel {
       contentFlick.contentY = Math.min(maximum, bottom + margin - contentFlick.height)
   }
 
+  function resetReadingPosition() {
+    if (contentFlick) contentFlick.contentY = 0
+  }
+
+  function scrollReading(delta) {
+    if (!contentFlick || delta === 0) return
+    var maximum = Math.max(0, contentFlick.contentHeight - contentFlick.height)
+    contentFlick.contentY = Math.max(0, Math.min(
+      maximum,
+      contentFlick.contentY + delta * Style.space(56)))
+  }
+
   function actionSelected(name) {
     return currentKeyboardAction === name
   }
 
+  function openEdition() {
+    var source = meditation ? meditation.currentSource : null
+    var url = source && source.editionUrl ? String(source.editionUrl) : ""
+    if (url.indexOf("https://standardebooks.org/") === 0)
+      Quickshell.execDetached(["xdg-open", url])
+  }
+
   function activateKeyboardAction() {
-    if (!podcast) return
-    if (currentKeyboardAction === "retry") podcast.retry()
-    else if (currentKeyboardAction === "back") podcast.seekRelative(-15000)
-    else if (currentKeyboardAction === "play") podcast.togglePlayback()
-    else if (currentKeyboardAction === "forward") podcast.seekRelative(15000)
-    else if (currentKeyboardAction === "page") openEpisodePage()
-    else if (currentKeyboardAction === "refresh") podcast.refresh()
+    if (!meditation) return
+    if (currentKeyboardAction === "previous") meditation.previous()
+    else if (currentKeyboardAction === "today") meditation.today()
+    else if (currentKeyboardAction === "next") meditation.next()
+    else if (currentKeyboardAction === "edition") openEdition()
+    else if (currentKeyboardAction === "retry") meditation.load()
   }
 
   function open() {
     resetKeyboardCursor()
     root.controller.show()
-    if (podcast && podcast.status === "idle") podcast.refresh()
+    Qt.callLater(resetReadingPosition)
   }
 
   function close() {
@@ -97,30 +114,14 @@ Panel {
     return false
   }
 
-  function formatTime(milliseconds) {
-    var total = Math.max(0, Math.floor(Number(milliseconds || 0) / 1000))
-    var hours = Math.floor(total / 3600)
-    var minutes = Math.floor((total % 3600) / 60)
-    var seconds = total % 60
-    var tail = String(minutes).padStart(hours > 0 ? 2 : 1, "0") + ":" + String(seconds).padStart(2, "0")
-    return hours > 0 ? hours + ":" + tail : tail
-  }
-
-  function formatPublished(value) {
-    if (!value) return ""
-    var date = new Date(value)
-    if (isNaN(date.getTime())) return ""
-    return Qt.formatDateTime(date, "ddd d MMM · HH:mm")
-  }
-
-  function openEpisodePage() {
-    if (podcast && podcast.episodeUrl.indexOf("https://") === 0)
-      Quickshell.execDetached(["xdg-open", podcast.episodeUrl])
-  }
-
   Connections {
-    target: root.podcast
+    target: root.meditation
     function onStatusChanged() { root.resetKeyboardCursor() }
+  }
+
+  onSelectedDateKeyChanged: {
+    resetKeyboardCursor()
+    Qt.callLater(resetReadingPosition)
   }
 
   KeyboardPanel {
@@ -131,20 +132,22 @@ Panel {
     open: root.opened
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(430))
-    contentHeight: panel.fittedContentHeight(content.implicitHeight)
+    contentHeight: panel.fittedContentHeight(content.implicitHeight, Style.space(560))
 
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
       onMoveRequested: function(dx, dy) {
-        root.moveKeyboardCursor(dx !== 0 ? dx : dy)
+        if (dy !== 0) root.scrollReading(dy)
+        else if (dx !== 0) root.moveKeyboardCursor(dx)
       }
       onActivateRequested: root.activateKeyboardAction()
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(text) {
-        if (!root.podcast) return
-        if (text === "r" || text === "R") root.podcast.refresh()
+        if (!root.meditation) return
+        if (text === "t" || text === "T") root.meditation.today()
+        else if (text === "r" || text === "R") root.meditation.load()
       }
 
       Flickable {
@@ -156,207 +159,182 @@ Panel {
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
         interactive: contentHeight > height
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
         Column {
           id: content
           width: contentFlick.width
           spacing: Style.space(12)
 
-        Text {
-          width: parent.width
-          text: "DAILY STOIC PODCAST"
-          color: Qt.darker(root.contentForeground, 1.35)
-          font.family: root.contentFontFamily
-          font.pixelSize: Style.font.bodySmall
-          font.letterSpacing: 1
-          wrapMode: Text.Wrap
-        }
-
-        Text {
-          visible: root.podcast && root.podcast.status === "loading"
-          width: parent.width
-          text: "Loading the latest episode…"
-          color: root.contentForeground
-          font.family: root.contentFontFamily
-          font.pixelSize: Style.font.body
-          wrapMode: Text.Wrap
-        }
-
-        Text {
-          visible: root.podcast && root.podcast.status === "ready" && root.podcast.errorMessage.length > 0
-          width: parent.width
-          text: root.podcast ? root.podcast.errorMessage : ""
-          color: root.contentForeground
-          font.family: root.contentFontFamily
-          font.pixelSize: Style.font.bodySmall
-          wrapMode: Text.Wrap
-        }
-
-        Column {
-          visible: root.podcast && root.podcast.status === "error"
-          width: parent.width
-          spacing: Style.space(8)
-
           Text {
             width: parent.width
-            text: root.podcast ? root.podcast.errorMessage : "Unable to load the podcast."
+            text: root.meditation
+              ? Qt.formatDate(root.meditation.selectedDate, "dddd, d MMMM yyyy")
+              : ""
+            color: Qt.darker(root.contentForeground, 1.45)
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.bodySmall
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
+          }
+
+          Text {
+            visible: root.meditation && root.meditation.status === "loading"
+            width: parent.width
+            text: "Opening the bundled readings…"
             color: root.contentForeground
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.body
             wrapMode: Text.Wrap
           }
 
-          Button {
-            id: retryButton
-            text: "Retry"
-            iconText: "󰑓"
-            focusable: true
-            hasCursor: root.actionSelected("retry")
-            bordered: true
-            foreground: root.contentForeground
-            fontFamily: root.contentFontFamily
-            onClicked: if (root.podcast) root.podcast.retry()
-          }
-        }
-
-        Column {
-          visible: root.podcast && (root.podcast.status === "ready" || root.podcast.playing)
-          width: parent.width
-          spacing: Style.space(10)
-
-          Text {
+          Column {
+            visible: root.meditation && root.meditation.status === "error"
             width: parent.width
-            text: root.podcast ? root.podcast.title : ""
-            textFormat: Text.PlainText
-            color: root.contentForeground
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.title
-            font.bold: true
-            wrapMode: Text.Wrap
-            maximumLineCount: 3
-            elide: Text.ElideRight
-          }
-
-          Text {
-            width: parent.width
-            text: root.podcast ? root.formatPublished(root.podcast.publishedAt) : ""
-            color: Qt.darker(root.contentForeground, 1.45)
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.bodySmall
-          }
-
-          PanelSlider {
-            bar: root.bar
-            width: parent.width
-            minimum: 0
-            maximum: Math.max(1, root.podcast ? root.podcast.duration : 0)
-            step: 15000
-            value: root.podcast ? root.podcast.position : 0
-            onMoved: function(value) { if (root.podcast) root.podcast.seekTo(value) }
-          }
-
-          Row {
-            width: parent.width
-
-            Text {
-              width: parent.width / 2
-              text: root.formatTime(root.podcast ? root.podcast.position : 0)
-              color: Qt.darker(root.contentForeground, 1.45)
-              font.family: root.contentFontFamily
-              font.pixelSize: Style.font.caption
-            }
-
-            Text {
-              width: parent.width / 2
-              text: root.formatTime(root.podcast ? root.podcast.duration : 0)
-              horizontalAlignment: Text.AlignRight
-              color: Qt.darker(root.contentForeground, 1.45)
-              font.family: root.contentFontFamily
-              font.pixelSize: Style.font.caption
-            }
-          }
-
-          Row {
-            anchors.horizontalCenter: parent.horizontalCenter
             spacing: Style.space(8)
 
-            Button {
-              id: backButton
-              iconText: "󰒮"
-              tooltipText: "Back 15 seconds"
-              Accessible.role: Accessible.Button
-              Accessible.name: "Back 15 seconds"
-              focusable: true
-              hasCursor: root.actionSelected("back")
-              bordered: true
-              foreground: root.contentForeground
-              fontFamily: root.contentFontFamily
-              onClicked: if (root.podcast) root.podcast.seekRelative(-15000)
+            Text {
+              width: parent.width
+              text: root.meditation ? root.meditation.errorMessage : "Unable to open the readings."
+              color: root.contentForeground
+              font.family: root.contentFontFamily
+              font.pixelSize: Style.font.body
+              wrapMode: Text.Wrap
             }
 
             Button {
-              id: playButton
-              iconText: root.podcast && root.podcast.playing ? "󰏤" : "󰐊"
-              text: root.podcast && root.podcast.playing ? "Pause" : "Play"
+              id: retryButton
+              text: "Retry"
+              iconText: "󰑓"
               focusable: true
-              hasCursor: root.actionSelected("play")
+              hasCursor: root.actionSelected("retry")
               bordered: true
               foreground: root.contentForeground
               fontFamily: root.contentFontFamily
-              onClicked: if (root.podcast) root.podcast.togglePlayback()
+              onClicked: if (root.meditation) root.meditation.load()
+            }
+          }
+
+          Column {
+            visible: root.meditation && root.meditation.currentEntry !== null
+            width: parent.width
+            spacing: Style.space(16)
+
+            Text {
+              width: parent.width
+              text: root.meditation && root.meditation.currentEntry
+                ? root.meditation.currentEntry.text
+                : ""
+              textFormat: Text.PlainText
+              color: root.contentForeground
+              font.family: root.contentFontFamily
+              font.pixelSize: Style.font.heading
+              font.weight: Font.Medium
+              lineHeight: 1.45
+              lineHeightMode: Text.ProportionalHeight
+              wrapMode: Text.Wrap
+            }
+
+            Column {
+              width: parent.width
+              spacing: Style.space(4)
+
+              Text {
+                width: parent.width
+                text: root.meditation && root.meditation.currentEntry
+                  ? "— " + root.meditation.currentEntry.author
+                  : ""
+                textFormat: Text.PlainText
+                color: root.contentForeground
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.subtitle
+                font.weight: Font.DemiBold
+                wrapMode: Text.Wrap
+              }
+
+              Text {
+                width: parent.width
+                text: root.meditation && root.meditation.currentEntry
+                  ? root.meditation.currentEntry.work + " · "
+                    + root.meditation.currentEntry.locator + "\n"
+                    + root.meditation.currentEntry.translator + " translation"
+                  : ""
+                textFormat: Text.PlainText
+                color: Qt.darker(root.contentForeground, 1.45)
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.bodySmall
+                lineHeight: 1.35
+                lineHeightMode: Text.ProportionalHeight
+                wrapMode: Text.Wrap
+              }
+            }
+          }
+
+          Row {
+            id: navigationRow
+            visible: root.meditation && root.meditation.currentEntry !== null
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: Style.space(2)
+            readonly property real buttonHeight: Math.max(
+              previousButton.implicitHeight,
+              todayButton.implicitHeight,
+              nextButton.implicitHeight)
+
+            Button {
+              id: previousButton
+              text: "Previous"
+              iconText: "󰁍"
+              height: navigationRow.buttonHeight
+              focusable: true
+              hasCursor: root.actionSelected("previous")
+              bordered: false
+              foreground: root.contentForeground
+              fontFamily: root.contentFontFamily
+              onClicked: if (root.meditation) root.meditation.previous()
             }
 
             Button {
-              id: forwardButton
-              iconText: "󰒭"
-              tooltipText: "Forward 15 seconds"
-              Accessible.role: Accessible.Button
-              Accessible.name: "Forward 15 seconds"
+              id: todayButton
+              text: "Today"
+              height: navigationRow.buttonHeight
               focusable: true
-              hasCursor: root.actionSelected("forward")
-              bordered: true
+              hasCursor: root.actionSelected("today")
+              bordered: false
               foreground: root.contentForeground
               fontFamily: root.contentFontFamily
-              onClicked: if (root.podcast) root.podcast.seekRelative(15000)
+              onClicked: if (root.meditation) root.meditation.today()
+            }
+
+            Button {
+              id: nextButton
+              text: "Next"
+              iconText: "󰁔"
+              height: navigationRow.buttonHeight
+              focusable: true
+              hasCursor: root.actionSelected("next")
+              bordered: false
+              foreground: root.contentForeground
+              fontFamily: root.contentFontFamily
+              onClicked: if (root.meditation) root.meditation.next()
             }
           }
-        }
 
-        Row {
-          spacing: Style.space(8)
+          Row {
+            visible: root.meditation && root.meditation.currentEntry !== null
+            width: parent.width
 
-          Button {
-            id: pageButton
-            text: "Official episode page"
-            iconText: "󰏌"
-            focusable: true
-            hasCursor: root.actionSelected("page")
-            foreground: root.contentForeground
-            fontFamily: root.contentFontFamily
-            onClicked: root.openEpisodePage()
+            Button {
+              id: editionButton
+              text: "View source edition"
+              iconText: "󰏌"
+              focusable: true
+              hasCursor: root.actionSelected("edition")
+              bordered: false
+              foreground: root.contentForeground
+              fontFamily: root.contentFontFamily
+              onClicked: root.openEdition()
+            }
           }
-
-          Button {
-            id: refreshButton
-            text: root.podcast && root.podcast.refreshing ? "Refreshing…" : "Refresh"
-            iconText: "󰑐"
-            enabled: !root.podcast || !root.podcast.refreshing
-            focusable: true
-            hasCursor: root.actionSelected("refresh")
-            foreground: root.contentForeground
-            fontFamily: root.contentFontFamily
-            onClicked: if (root.podcast) root.podcast.refresh()
-          }
-        }
-
-        Text {
-          width: parent.width
-          text: "Unofficial client. Audio streams directly from the publisher-provided RSS enclosure. Not affiliated with or endorsed by Daily Stoic."
-          color: Qt.darker(root.contentForeground, 1.6)
-          font.family: root.contentFontFamily
-          font.pixelSize: Style.font.caption
-          wrapMode: Text.Wrap
-        }
         }
       }
     }

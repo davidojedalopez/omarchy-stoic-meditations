@@ -4,7 +4,7 @@ import qs.Ui
 
 BarWidget {
   id: root
-  moduleName: "dev.davidojeda.stoic-podcast"
+  moduleName: "dev.davidojeda.stoic-meditations"
 
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item
@@ -34,7 +34,7 @@ BarWidget {
     if ("bar" in target) target.bar = root.bar
     if ("anchorItem" in target) target.anchorItem = button
     if ("hostWidget" in target) target.hostWidget = root
-    target.podcast = podcast
+    target.meditation = meditation
   }
 
   implicitWidth: button.implicitWidth
@@ -42,8 +42,8 @@ BarWidget {
 
   onBarChanged: injectPanel()
 
-  PodcastController {
-    id: podcast
+  MeditationController {
+    id: meditation
   }
 
   Loader {
@@ -61,13 +61,15 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: podcast.playing ? "󰏤" : "󰐊"
-    active: podcast.playing
-    tooltipText: podcast.playing ? "Daily Stoic podcast — playing" : "Daily Stoic podcast"
+    text: "󰂺"
+    active: root.opened
+    tooltipText: meditation.currentEntry
+      ? "Stoic Meditations — " + meditation.currentEntry.author
+      : "Stoic Meditations"
     Accessible.role: Accessible.Button
     Accessible.name: root.opened
-      ? "Close Daily Stoic podcast controls"
-      : "Open Daily Stoic podcast controls"
+      ? "Close Stoic Meditations"
+      : "Open Stoic Meditations"
 
     onPressed: function(button) {
       if (button === Qt.LeftButton) root.togglePanel()
