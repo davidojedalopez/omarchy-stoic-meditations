@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>Missing Audio</title>
+      <link>https://example.test/episodes/missing-audio</link>
+      <pubDate>Thu, 20 Aug 2026 10:00:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>

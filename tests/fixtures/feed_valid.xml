@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Example Stoic Podcast</title>
+    <item>
+      <title>Practice the Next Right Action</title>
+      <link>https://example.test/episodes/next-right-action</link>
+      <pubDate>Thu, 20 Aug 2026 10:00:00 +0000</pubDate>
+      <enclosure url="https://media.example.test/next-right-action.mp3" type="audio/mpeg" length="12345" />
+      <itunes:duration>02:37</itunes:duration>
+      <description>This synthetic body must never be returned.</description>
+    </item>
+    <item>
+      <title>An Older Example</title>
+      <link>https://example.test/episodes/older</link>
+      <pubDate>Wed, 19 Aug 2026 10:00:00 +0000</pubDate>
+      <enclosure url="https://media.example.test/older.mp3" type="audio/mpeg" length="12345" />
+      <itunes:duration>01:05:02</itunes:duration>
+    </item>
+  </channel>
+</rss>

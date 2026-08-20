@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <item>
+      <title>Unsafe Audio</title>
+      <link>https://example.test/episodes/unsafe</link>
+      <pubDate>Thu, 20 Aug 2026 10:00:00 +0000</pubDate>
+      <enclosure url="file:///tmp/unsafe.mp3" type="audio/mpeg" length="12345" />
+    </item>
+  </channel>
+</rss>
