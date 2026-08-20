@@ -6,62 +6,74 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class QmlContractTest(unittest.TestCase):
-    def test_controller_uses_feed_payload_field_and_preserves_active_playback(self):
-        source = (ROOT / "PodcastController.qml").read_text(encoding="utf-8")
-
-        self.assertIn("payload.published", source)
-        self.assertIn("player.playbackState !== MediaPlayer.StoppedState", source)
-        self.assertNotIn("if (audioUrl)\n      return\n    refresh()", source)
-        self.assertIn('status = audioUrl ? "ready" : "error"', source)
-        self.assertIn("property bool refreshing: false", source)
-
-    def test_controller_parses_stdout_when_the_collector_finishes(self):
-        source = (ROOT / "PodcastController.qml").read_text(encoding="utf-8")
-
-        self.assertIn("onStreamFinished:", source)
-        self.assertNotIn("if (feedStdout.text)", source)
-        self.assertIn("id: feedWatchdog", source)
-        self.assertIn("feedProcess.running = false", source)
-        self.assertIn("feedTerminationPending", source)
-        self.assertIn("retryAfterTermination", source)
+    def test_runtime_has_no_network_process_or_media_dependencies(self):
+        runtime = "\n".join(
+            (ROOT / name).read_text(encoding="utf-8")
+            for name in ("BarWidget.qml", "Panel.qml", "MeditationController.qml")
+        )
+        self.assertNotIn("QtMultimedia", runtime)
+        self.assertNotIn("Process {", runtime)
+        self.assertNotIn("XMLHttpRequest", runtime)
+        self.assertNotIn("http://", runtime)
+        self.assertNotIn("rss", runtime.lower())
+        self.assertIn("FileView {", runtime)
+        self.assertIn('Qt.resolvedUrl("data/meditations.json")', runtime)
 
     def test_bar_widget_owns_controller_and_nested_panel(self):
         source = (ROOT / "BarWidget.qml").read_text(encoding="utf-8")
-
-        self.assertIn("PodcastController {", source)
+        self.assertIn("MeditationController {", source)
         self.assertIn('Qt.resolvedUrl("Panel.qml")', source)
-        self.assertIn("function open()", source)
-        self.assertIn("function close()", source)
-        self.assertIn("function togglePanel()", source)
-        self.assertIn("target.podcast = podcast", source)
-        self.assertIn('"Close Daily Stoic podcast controls"', source)
-        self.assertIn('"Open Daily Stoic podcast controls"', source)
+        self.assertIn("target.meditation = meditation", source)
+        self.assertIn('"Close Stoic Meditations"', source)
+        self.assertIn('"Open Stoic Meditations"', source)
 
-    def test_panel_exposes_playback_and_official_link_controls(self):
+    def test_panel_displays_complete_plain_text_and_attribution(self):
         source = (ROOT / "Panel.qml").read_text(encoding="utf-8")
-
-        self.assertIn("PanelSlider {", source)
-        self.assertIn("podcast.togglePlayback()", source)
-        self.assertIn("podcast.seekRelative(-15000)", source)
-        self.assertIn("podcast.seekRelative(15000)", source)
-        self.assertIn('Accessible.name: "Back 15 seconds"', source)
-        self.assertIn('Accessible.name: "Forward 15 seconds"', source)
-        self.assertIn('Quickshell.execDetached(["xdg-open", podcast.episodeUrl])', source)
-        self.assertIn("Unofficial", source)
-        self.assertNotIn("description", source.lower())
-        self.assertNotIn("artwork", source.lower())
-
-    def test_panel_treats_feed_titles_as_plain_text_and_scrolls_overflow(self):
-        source = (ROOT / "Panel.qml").read_text(encoding="utf-8")
-
-        self.assertIn("textFormat: Text.PlainText", source)
+        self.assertGreaterEqual(source.count("textFormat: Text.PlainText"), 3)
+        self.assertIn("root.meditation.currentEntry.text", source)
+        self.assertIn('root.meditation.currentEntry.translator + " translation"', source)
+        self.assertIn("root.meditation.currentEntry.locator", source)
+        self.assertIn('"— " + root.meditation.currentEntry.author', source)
+        self.assertLess(
+            source.index("Qt.formatDate(root.meditation.selectedDate"),
+            source.index("root.meditation.currentEntry.text"),
+        )
+        self.assertLess(
+            source.index("root.meditation.currentEntry.text"),
+            source.index('"— " + root.meditation.currentEntry.author'),
+        )
+        self.assertLess(
+            source.index('"— " + root.meditation.currentEntry.author'),
+            source.index("root.meditation.currentEntry.work"),
+        )
+        self.assertNotIn('text: "STOIC MEDITATION"', source)
+        self.assertNotIn("Offline · public-domain", source)
+        self.assertNotIn("maximumLineCount", source)
+        self.assertNotIn("Text.ElideRight", source)
         self.assertIn("Flickable {", source)
         self.assertIn("contentHeight: content.implicitHeight", source)
-        self.assertIn("function ensureKeyboardCursorVisible()", source)
 
-    def test_panel_buttons_are_keyboard_focusable(self):
+    def test_panel_has_date_navigation_and_safe_edition_controls(self):
         source = (ROOT / "Panel.qml").read_text(encoding="utf-8")
+        self.assertNotIn("toggleSource", source)
+        self.assertNotIn("includeMarcusMeditations", source)
+        self.assertIn("meditation.previous()", source)
+        self.assertIn("meditation.today()", source)
+        self.assertIn("meditation.next()", source)
+        self.assertIn('url.indexOf("https://standardebooks.org/")', source)
+        self.assertIn('Quickshell.execDetached(["xdg-open", url])', source)
 
+    def test_navigation_buttons_share_height_without_tooltips(self):
+        source = (ROOT / "Panel.qml").read_text(encoding="utf-8")
+        self.assertIn("id: navigationRow", source)
+        self.assertIn("readonly property real buttonHeight: Math.max(", source)
+        self.assertEqual(source.count("height: navigationRow.buttonHeight"), 3)
+        self.assertNotIn('tooltipText: "Previous day"', source)
+        self.assertNotIn('tooltipText: "Return to today\'s meditation"', source)
+        self.assertNotIn('tooltipText: "Next day"', source)
+
+    def test_panel_controls_are_keyboard_accessible(self):
+        source = (ROOT / "Panel.qml").read_text(encoding="utf-8")
         self.assertGreaterEqual(source.count("focusable: true"), 4)
         self.assertIn("PanelKeyCatcher {", source)
         self.assertIn("focusTarget: keyCatcher", source)
@@ -70,6 +82,19 @@ class QmlContractTest(unittest.TestCase):
         self.assertIn("hasCursor:", source)
         self.assertIn("onCloseRequested: root.close()", source)
         self.assertIn("onTabRequested:", source)
+
+    def test_long_readings_use_a_bounded_scrollable_surface(self):
+        source = (ROOT / "Panel.qml").read_text(encoding="utf-8")
+        self.assertIn(
+            "contentHeight: panel.fittedContentHeight(content.implicitHeight, Style.space(560))",
+            source,
+        )
+        self.assertIn("ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }", source)
+        self.assertIn("function resetReadingPosition()", source)
+        self.assertIn("onSelectedDateKeyChanged:", source)
+        self.assertIn("Qt.callLater(resetReadingPosition)", source)
+        self.assertIn("if (dy !== 0) root.scrollReading(dy)", source)
+        self.assertIn("else if (dx !== 0) root.moveKeyboardCursor(dx)", source)
 
 
 if __name__ == "__main__":
