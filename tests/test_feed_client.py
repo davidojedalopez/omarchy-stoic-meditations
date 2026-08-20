@@ -155,7 +155,7 @@ class FeedFetchTest(unittest.TestCase):
             captured["request"].get_header("User-agent"),
         )
         self.assertIn(
-            "github.com/davidojeda/omarchy-stoic-podcast",
+            "github.com/davidojedalopez/omarchy-stoic-podcast",
             captured["request"].get_header("User-agent"),
         )
         self.assertEqual(captured["timeout"], 10)

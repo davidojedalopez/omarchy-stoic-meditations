@@ -34,7 +34,7 @@ Omarchy plugins run as unsandboxed code inside `omarchy-shell`. Review this
 repository before installation, then run:
 
 ```bash
-omarchy plugin add https://github.com/davidojeda/omarchy-stoic-podcast.git --enable
+omarchy plugin add https://github.com/davidojedalopez/omarchy-stoic-podcast.git --enable
 ```
 
 The permanent plugin ID is `dev.davidojeda.stoic-podcast`.

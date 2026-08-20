@@ -22,7 +22,7 @@ REQUEST_TIMEOUT_SECONDS = 10
 TOTAL_FETCH_DEADLINE_SECONDS = 15
 USER_AGENT = (
     "omarchy-stoic-podcast/0.1 "
-    "(+https://github.com/davidojeda/omarchy-stoic-podcast)"
+    "(+https://github.com/davidojedalopez/omarchy-stoic-podcast)"
 )
 ITUNES_NAMESPACE = "http://www.itunes.com/dtds/podcast-1.0.dtd"
 
