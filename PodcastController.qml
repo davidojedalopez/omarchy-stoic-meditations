@@ -19,6 +19,8 @@ Item {
   property string episodeUrl: "https://dailystoic.com/podcast/"
   property bool playWhenReady: false
   property bool feedTimedOut: false
+  property bool feedTerminationPending: false
+  property bool retryAfterTermination: false
 
   readonly property bool loading: status === "loading"
   readonly property bool playing: player.playbackState === MediaPlayer.PlayingState
@@ -44,6 +46,10 @@ Item {
   }
 
   function refresh() {
+    if (feedTerminationPending) {
+      retryAfterTermination = true
+      return
+    }
     if (feedProcess.running)
       return
 
@@ -56,7 +62,7 @@ Item {
   }
 
   function scheduledRefresh() {
-    if (playing && audioUrl)
+    if (audioUrl)
       return
     refresh()
   }
@@ -152,6 +158,8 @@ Item {
     episodeUrl = "https://dailystoic.com/podcast/"
     playWhenReady = false
     feedTimedOut = false
+    feedTerminationPending = false
+    retryAfterTermination = false
   }
 
   MediaPlayer {
@@ -171,7 +179,15 @@ Item {
       waitForEnd: true
       onStreamFinished: {
         feedWatchdog.stop()
-        if (root.feedTimedOut) return
+        if (root.feedTimedOut) {
+          root.feedTimedOut = false
+          root.feedTerminationPending = false
+          if (root.retryAfterTermination) {
+            root.retryAfterTermination = false
+            Qt.callLater(root.refresh)
+          }
+          return
+        }
         var output = String(text || "").trim()
         if (output)
           root.applyPayload(output)
@@ -192,6 +208,7 @@ Item {
     onTriggered: {
       if (!feedProcess.running) return
       root.feedTimedOut = true
+      root.feedTerminationPending = true
       feedProcess.running = false
       root.fail("The podcast feed request timed out.")
     }

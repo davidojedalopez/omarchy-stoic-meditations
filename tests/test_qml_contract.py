@@ -10,7 +10,8 @@ class QmlContractTest(unittest.TestCase):
         source = (ROOT / "PodcastController.qml").read_text(encoding="utf-8")
 
         self.assertIn("payload.published", source)
-        self.assertIn("if (playing && audioUrl)", source)
+        self.assertIn("if (audioUrl)", source)
+        self.assertNotIn("if (playing && audioUrl)", source)
 
     def test_controller_parses_stdout_when_the_collector_finishes(self):
         source = (ROOT / "PodcastController.qml").read_text(encoding="utf-8")
@@ -19,6 +20,8 @@ class QmlContractTest(unittest.TestCase):
         self.assertNotIn("if (feedStdout.text)", source)
         self.assertIn("id: feedWatchdog", source)
         self.assertIn("feedProcess.running = false", source)
+        self.assertIn("feedTerminationPending", source)
+        self.assertIn("retryAfterTermination", source)
 
     def test_bar_widget_owns_controller_and_nested_panel(self):
         source = (ROOT / "BarWidget.qml").read_text(encoding="utf-8")
