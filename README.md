@@ -4,6 +4,8 @@ An offline, text-first Omarchy Quattro plugin that presents one short reading
 per day from independent public-domain editions of Marcus Aurelius and
 Epictetus.
 
+![Stoic Meditations panel](preview.png)
+
 The reading is deterministic for a given local date. Use
 Previous and Next to browse without changing the daily schedule, or Today to
 return to the current reading.
