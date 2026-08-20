@@ -18,6 +18,7 @@ Item {
   property string audioUrl: ""
   property string episodeUrl: "https://dailystoic.com/podcast/"
   property bool playWhenReady: false
+  property bool feedTimedOut: false
 
   readonly property bool loading: status === "loading"
   readonly property bool playing: player.playbackState === MediaPlayer.PlayingState
@@ -48,7 +49,9 @@ Item {
 
     status = "loading"
     errorMessage = ""
+    feedTimedOut = false
     feedProcess.command = ["python3", scriptPath()]
+    feedWatchdog.restart()
     feedProcess.running = true
   }
 
@@ -138,6 +141,7 @@ Item {
   function resetForTest() {
     if (feedProcess.running)
       feedProcess.running = false
+    feedWatchdog.stop()
     player.stop()
     status = "idle"
     errorMessage = ""
@@ -147,6 +151,7 @@ Item {
     audioUrl = ""
     episodeUrl = "https://dailystoic.com/podcast/"
     playWhenReady = false
+    feedTimedOut = false
   }
 
   MediaPlayer {
@@ -165,6 +170,8 @@ Item {
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
+        feedWatchdog.stop()
+        if (root.feedTimedOut) return
         var output = String(text || "").trim()
         if (output)
           root.applyPayload(output)
@@ -175,6 +182,18 @@ Item {
 
     stderr: StdioCollector {
       waitForEnd: true
+    }
+  }
+
+  Timer {
+    id: feedWatchdog
+    interval: 20 * 1000
+    repeat: false
+    onTriggered: {
+      if (!feedProcess.running) return
+      root.feedTimedOut = true
+      feedProcess.running = false
+      root.fail("The podcast feed request timed out.")
     }
   }
 

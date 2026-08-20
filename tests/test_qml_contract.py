@@ -17,6 +17,8 @@ class QmlContractTest(unittest.TestCase):
 
         self.assertIn("onStreamFinished:", source)
         self.assertNotIn("if (feedStdout.text)", source)
+        self.assertIn("id: feedWatchdog", source)
+        self.assertIn("feedProcess.running = false", source)
 
     def test_bar_widget_owns_controller_and_nested_panel(self):
         source = (ROOT / "BarWidget.qml").read_text(encoding="utf-8")

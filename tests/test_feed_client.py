@@ -174,6 +174,16 @@ class FeedFetchTest(unittest.TestCase):
                 opener=lambda request, timeout: response
             )
 
+    def test_fetch_enforces_total_deadline(self):
+        response = FakeResponse((FIXTURES / "feed_valid.xml").read_bytes())
+        ticks = iter([0.0, 0.0, feed_client.TOTAL_FETCH_DEADLINE_SECONDS + 0.1])
+
+        with self.assertRaisesRegex(feed_client.FeedError, "timed out"):
+            feed_client.fetch_latest_episode(
+                opener=lambda request, timeout: response,
+                clock=lambda: next(ticks),
+            )
+
     def test_fetch_stops_after_first_item_in_a_large_feed(self):
         xml = (FIXTURES / "feed_valid.xml").read_bytes()
         xml = xml.replace(

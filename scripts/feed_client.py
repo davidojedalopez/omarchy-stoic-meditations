@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -18,6 +19,7 @@ OFFICIAL_PAGE_URL = "https://dailystoic.com/podcast/"
 MAX_FEED_BYTES = 4 * 1024 * 1024
 READ_CHUNK_BYTES = 64 * 1024
 REQUEST_TIMEOUT_SECONDS = 10
+TOTAL_FETCH_DEADLINE_SECONDS = 15
 USER_AGENT = (
     "omarchy-stoic-podcast/0.1 "
     "(+https://github.com/davidojeda/omarchy-stoic-podcast)"
@@ -124,15 +126,24 @@ def parse_feed(xml_bytes: bytes) -> dict[str, object]:
     return _episode_from_item(item)
 
 
-def _parse_first_item_stream(response: Any) -> dict[str, object]:
+def _parse_first_item_stream(
+    response: Any,
+    *,
+    deadline: float,
+    clock: Callable[[], float],
+) -> dict[str, object]:
     """Stop parsing once the first RSS item is complete."""
     parser = ET.XMLPullParser(events=("end",))
     total_bytes = 0
 
     while True:
+        if clock() > deadline:
+            raise FeedError("podcast feed timed out")
         chunk = response.read(
             min(READ_CHUNK_BYTES, MAX_FEED_BYTES - total_bytes + 1)
         )
+        if clock() > deadline:
+            raise FeedError("podcast feed timed out")
         if not chunk:
             try:
                 parser.close()
@@ -156,15 +167,21 @@ def _parse_first_item_stream(response: Any) -> dict[str, object]:
 
 def fetch_latest_episode(
     opener: Callable[..., Any] = urllib.request.urlopen,
+    clock: Callable[[], float] = time.monotonic,
 ) -> dict[str, object]:
     """Fetch and parse the official feed with strict time and size bounds."""
     request = urllib.request.Request(
         FEED_URL,
         headers={"User-Agent": USER_AGENT, "Accept": "application/rss+xml, application/xml"},
     )
+    deadline = clock() + TOTAL_FETCH_DEADLINE_SECONDS
     try:
         with opener(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
-            return _parse_first_item_stream(response)
+            return _parse_first_item_stream(
+                response,
+                deadline=deadline,
+                clock=clock,
+            )
     except (urllib.error.URLError, OSError, TimeoutError):
         raise FeedError("podcast feed unavailable") from None
 
