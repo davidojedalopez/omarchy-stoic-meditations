@@ -34,7 +34,8 @@ class QmlContractTest(unittest.TestCase):
         self.assertIn("function close()", source)
         self.assertIn("function togglePanel()", source)
         self.assertIn("target.podcast = podcast", source)
-        self.assertIn('Accessible.name: podcast.playing ? "Pause Daily Stoic podcast" : "Open Daily Stoic podcast"', source)
+        self.assertIn('"Close Daily Stoic podcast controls"', source)
+        self.assertIn('"Open Daily Stoic podcast controls"', source)
 
     def test_panel_exposes_playback_and_official_link_controls(self):
         source = (ROOT / "Panel.qml").read_text(encoding="utf-8")

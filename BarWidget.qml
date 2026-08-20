@@ -65,7 +65,9 @@ BarWidget {
     active: podcast.playing
     tooltipText: podcast.playing ? "Daily Stoic podcast — playing" : "Daily Stoic podcast"
     Accessible.role: Accessible.Button
-    Accessible.name: podcast.playing ? "Pause Daily Stoic podcast" : "Open Daily Stoic podcast"
+    Accessible.name: root.opened
+      ? "Close Daily Stoic podcast controls"
+      : "Open Daily Stoic podcast controls"
 
     onPressed: function(button) {
       if (button === Qt.LeftButton) root.togglePanel()
