@@ -34,6 +34,7 @@ class QmlContractTest(unittest.TestCase):
         self.assertIn("function close()", source)
         self.assertIn("function togglePanel()", source)
         self.assertIn("target.podcast = podcast", source)
+        self.assertIn('Accessible.name: podcast.playing ? "Pause Daily Stoic podcast" : "Open Daily Stoic podcast"', source)
 
     def test_panel_exposes_playback_and_official_link_controls(self):
         source = (ROOT / "Panel.qml").read_text(encoding="utf-8")
@@ -42,6 +43,8 @@ class QmlContractTest(unittest.TestCase):
         self.assertIn("podcast.togglePlayback()", source)
         self.assertIn("podcast.seekRelative(-15000)", source)
         self.assertIn("podcast.seekRelative(15000)", source)
+        self.assertIn('Accessible.name: "Back 15 seconds"', source)
+        self.assertIn('Accessible.name: "Forward 15 seconds"', source)
         self.assertIn('Quickshell.execDetached(["xdg-open", podcast.episodeUrl])', source)
         self.assertIn("Unofficial", source)
         self.assertNotIn("description", source.lower())

@@ -46,12 +46,13 @@ class FeedParserTest(unittest.TestCase):
         )
         self.assertNotIn("description", episode)
 
-    def test_parse_duration_accepts_mm_ss_and_hh_mm_ss(self):
+    def test_parse_duration_accepts_seconds_mm_ss_and_hh_mm_ss(self):
+        self.assertEqual(feed_client.parse_duration("157"), 157)
         self.assertEqual(feed_client.parse_duration("02:37"), 157)
         self.assertEqual(feed_client.parse_duration("1:02:03"), 3723)
 
     def test_parse_duration_rejects_invalid_ranges(self):
-        for value in ("", "9", "1:99", "1:02:99", "x:01"):
+        for value in ("", "1:99", "1:02:99", "x:01"):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
                     feed_client.parse_duration(value)

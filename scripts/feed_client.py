@@ -34,10 +34,12 @@ class FeedError(ValueError):
 def parse_duration(value: str) -> int:
     """Convert an iTunes podcast duration to seconds."""
     parts = value.strip().split(":")
-    if len(parts) not in (2, 3) or any(not part.isdigit() for part in parts):
+    if len(parts) not in (1, 2, 3) or any(not part.isdigit() for part in parts):
         raise ValueError("unsupported podcast duration")
 
     numbers = [int(part) for part in parts]
+    if len(numbers) == 1:
+        return numbers[0]
     if len(numbers) == 2:
         minutes, seconds = numbers
         if seconds >= 60:

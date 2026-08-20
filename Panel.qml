@@ -284,6 +284,8 @@ Panel {
               id: backButton
               iconText: "󰒮"
               tooltipText: "Back 15 seconds"
+              Accessible.role: Accessible.Button
+              Accessible.name: "Back 15 seconds"
               focusable: true
               hasCursor: root.actionSelected("back")
               bordered: true
@@ -308,6 +310,8 @@ Panel {
               id: forwardButton
               iconText: "󰒭"
               tooltipText: "Forward 15 seconds"
+              Accessible.role: Accessible.Button
+              Accessible.name: "Forward 15 seconds"
               focusable: true
               hasCursor: root.actionSelected("forward")
               bordered: true
