@@ -12,6 +12,12 @@ class QmlContractTest(unittest.TestCase):
         self.assertIn("payload.published", source)
         self.assertIn("if (playing && audioUrl)", source)
 
+    def test_controller_parses_stdout_when_the_collector_finishes(self):
+        source = (ROOT / "PodcastController.qml").read_text(encoding="utf-8")
+
+        self.assertIn("onStreamFinished:", source)
+        self.assertNotIn("if (feedStdout.text)", source)
+
     def test_bar_widget_owns_controller_and_nested_panel(self):
         source = (ROOT / "BarWidget.qml").read_text(encoding="utf-8")
 

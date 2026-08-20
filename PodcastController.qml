@@ -163,22 +163,18 @@ Item {
     id: feedProcess
 
     stdout: StdioCollector {
-      id: feedStdout
       waitForEnd: true
+      onStreamFinished: {
+        var output = String(text || "").trim()
+        if (output)
+          root.applyPayload(output)
+        else
+          root.fail("Unable to fetch the podcast feed.")
+      }
     }
 
     stderr: StdioCollector {
-      id: feedStderr
       waitForEnd: true
-    }
-
-    onExited: function(exitCode) {
-      if (feedStdout.text)
-        root.applyPayload(feedStdout.text)
-      else if (exitCode !== 0)
-        root.fail("Unable to fetch the podcast feed.")
-      else
-        root.fail("The podcast feed returned no data.")
     }
   }
 
